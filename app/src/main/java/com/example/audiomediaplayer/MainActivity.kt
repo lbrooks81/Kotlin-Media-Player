@@ -1,5 +1,6 @@
 package com.example.audiomediaplayer
 
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.util.Log
@@ -7,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -39,18 +41,30 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.example.audiomediaplayer.ui.theme.AudioMediaPlayerTheme
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Initializes the mediaPlayer by opening the audio file and setting the data source
         val mediaPlayer = MediaPlayer().apply {
             assets.openFd("infernal_sonata.mp3").use { descriptor ->
                 setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
                 prepare()
             }
         }
+
+        val metaDataRetriever = MediaMetadataRetriever().apply{
+            assets.openFd("infernal_sonata.mp3").use { descriptor ->
+                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+            }
+        }
+
+        val artist = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+        val album = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+        val title = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
 
         enableEdgeToEdge()
         setContent {
@@ -59,11 +73,34 @@ class MainActivity : ComponentActivity() {
 
                     Card(
                         modifier = Modifier
-                            .padding(50.dp)
-                            .height(250.dp),
+                            .padding(top = 150.dp)
+                            .height(300.dp)
                     ) {
+                        Column(
+                            modifier = Modifier.padding(top = 15.dp)
+                        ) {
+                            Text(
+                                text = "$artist",
+                                modifier = Modifier
+                                    .padding(start = 25.dp),
+                                fontSize = 20.sp
+                            )
+                            Text(
+                                text = "$title",
+                                modifier = Modifier
+                                    .padding(start = 25.dp),
+                                fontSize = 22.sp
+                            )
+                            Text(
+                                text = "$album",
+                                modifier = Modifier
+                                    .padding(start = 25.dp),
+                                fontSize = 16.sp
+                            )
+                        }
                         TimeBar(mediaPlayer = mediaPlayer)
                     }
+
 
                     Row(
                         modifier = Modifier
@@ -86,24 +123,6 @@ class MainActivity : ComponentActivity() {
                             },
                             valueRange = 0f..1f
                         )
-                        Button(
-                            onClick = ({
-                               mediaPlayer.isLooping = true
-                            })
-                        ){
-                            Text("Loop")
-                        }
-
-
-
-                        Button(
-                            onClick = ({
-                                mediaPlayer.stop()
-                                mediaPlayer.prepare()
-                            })
-                        ) {
-                            Text("Reset")
-                        }
                     }
                 }
             }
@@ -125,8 +144,7 @@ fun TimeBar(mediaPlayer: MediaPlayer) {
 
         Slider(
             modifier = Modifier
-                .padding(horizontal = 50.dp)
-                .padding(top = 10.dp),
+                .padding(horizontal = 50.dp),
             value = currentTime.toFloat(),
             onValueChange = {
                 mediaPlayer.seekTo(it.toInt())
@@ -147,80 +165,99 @@ fun TimeBar(mediaPlayer: MediaPlayer) {
         )
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 50.dp),
+                .fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize(),
-                horizontalArrangement = Arrangement.SpaceAround
-            ){
-                Text(
-                    modifier = Modifier.padding(end = 50.dp),
-                    text="${(currentTime / 1000) / 60}:${addZero((currentTime / 1000) % 60)}",
-                    fontSize = 24.sp,
-                )
-                Text(
-                    modifier = Modifier.padding(start = 50.dp),
-                    text="${(mediaPlayer.duration / 1000) / 60}:${addZero((mediaPlayer.duration / 1000) % 60 )}",
-                    fontSize = 24.sp
-                )
-            }
             var iconType by remember { mutableStateOf(R.drawable.play) }
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 50.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ){
-                Image(
-                    painter = painterResource(iconType),
-                    contentDescription = "icon",
-                    contentScale = ContentScale.Fit,
+                    .zIndex(1f)
+                    .height(300.dp)
+                   ,
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
                     modifier = Modifier
-                        .scale(0.75f)
-                        .pointerInput(Unit) {
-                            detectTapGestures {
-                                if (mediaPlayer.isPlaying) {
-                                    mediaPlayer.pause()
-                                    iconType = R.drawable.play
-                                }
-                                else {
-                                    mediaPlayer.start()
-                                    iconType = R.drawable.pause
+                        .width(450.dp)
+                        .height(50.dp)
+                        ,
+                    horizontalArrangement = Arrangement.SpaceAround
+                ){
+                    Text(
+                        modifier = Modifier.padding(top = 10.dp),
+                        text="${(currentTime / 1000) / 60}:${addZero((currentTime / 1000) % 60)}",
+                        fontSize = 24.sp,
+                    )
+
+                    Image(
+                        painter = painterResource(iconType),
+                        contentDescription = "icon",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .pointerInput(Unit) {
+                                detectTapGestures {
+                                    if (mediaPlayer.isPlaying) {
+                                        mediaPlayer.pause()
+                                        iconType = R.drawable.play
+                                    }
+                                    else {
+                                        mediaPlayer.start()
+                                        iconType = R.drawable.pause
+                                    }
                                 }
                             }
-                        }
-                )
+                    )
+                    Text(
+                        modifier = Modifier.padding(top = 10.dp),
+                        text="${(mediaPlayer.duration / 1000) / 60}:${addZero((mediaPlayer.duration / 1000) % 60 )}",
+                        fontSize = 24.sp
+                    )
+                }
+
+                var loopType by remember { mutableStateOf(R.drawable.looptransparent) }
+
+                Row(
+                    modifier = Modifier
+                        .width(450.dp)
+                        .padding(bottom = 50.dp)
+                        ,
+                    horizontalArrangement = Arrangement.SpaceAround
+                ) {
+                    Image(
+                        painter = painterResource(loopType),
+                        contentDescription = "icon",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .pointerInput(Unit) {
+                                if (mediaPlayer.isLooping) {
+                                    mediaPlayer.isLooping = false
+                                    loopType = R.drawable.loop
+                                } else {
+                                    mediaPlayer.isLooping = true
+                                    loopType = R.drawable.looptransparent
+                                }
+                            }
+                    )
+                    Button(
+                        onClick = ({
+                            mediaPlayer.stop()
+                            mediaPlayer.prepare()
+                        })
+                    ) {
+                        Text("Reset")
+                    }
+                }
             }
         }
-
 }
 fun addZero(number: Int): String {
     return if (number < 10) {
         "0$number"
     } else {
         number.toString()
-    }
-}
-
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    AudioMediaPlayerTheme {
-        Greeting("Android")
     }
 }
