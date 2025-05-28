@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,47 +56,49 @@ data class SelectSong(val mediaPlayer: MediaPlayer)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Initializes the mediaPlayer by opening the audio file and setting the data source
-        val mediaPlayer = MediaPlayer().apply {
-            assets.openFd("infernal_sonata.mp3").use { descriptor ->
-                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-                prepare()
-            }
-        }
-
-        val metaDataRetriever = MediaMetadataRetriever().apply{
-            assets.openFd("infernal_sonata.mp3").use { descriptor ->
-                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-            }
-        }
-
-        val artist = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-        val album = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-        val title = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-
         enableEdgeToEdge()
         setContent {
             AudioMediaPlayerTheme {
-                val navController = rememberNavController()
-                NavHost(navController = navController, startDestination = Main(
-                    mediaPlayer = mediaPlayer,
-                    artist = artist ?: "Unknown Artist",
-                    album = album ?: "Unknown Album",
-                    title = title ?: "Unknown Title"
-                )) {
-                    composable<Main> {
-                        MainScreen(
-                            mediaPlayer = mediaPlayer,
-                            artist = artist ?: "Unknown Artist",
-                            album = album ?: "Unknown Album",
-                            title = title ?: "Unknown Title"
-                        )
-                    }
-                    composable<SelectSong> {
-                        SelectSongScreen()
-                    }
-                }
+                AppStart()
             }
+        }
+    }
+}
+
+@Composable
+fun AppStart()
+{
+    val context = LocalContext.current
+    // Initializes the mediaPlayer by opening the audio file and setting the data source
+    val mediaPlayer = MediaPlayer().apply {
+        context.assets.openFd("infernal_sonata.mp3").use { descriptor ->
+            setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+            prepare()
+        }
+    }
+
+    val metaDataRetriever = MediaMetadataRetriever().apply{
+        context.assets.openFd("infernal_sonata.mp3").use { descriptor ->
+            setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+        }
+    }
+
+    val artist = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+    val album = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+    val title = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "main") {
+        composable("main") {
+            MainScreen(
+                mediaPlayer = mediaPlayer,
+                artist = artist ?: "Unknown Artist",
+                album = album ?: "Unknown Album",
+                title = title ?: "Unknown Title"
+            )
+        }
+        composable("select_song") {
+            SelectSongScreen()
         }
     }
 }
