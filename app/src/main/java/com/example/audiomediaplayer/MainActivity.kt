@@ -77,13 +77,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             AudioMediaPlayerTheme {
                 val navController = rememberNavController()
-                NavHost(navController = navController, startDestination = Main(
-                    mediaPlayer = mediaPlayer,
-                    artist = artist ?: "Unknown Artist",
-                    album = album ?: "Unknown Album",
-                    title = title ?: "Unknown Title"
-                )) {
-                    composable<Main> {
+                NavHost(navController = navController, startDestination = "main"){
+                    composable("main") {
                         MainScreen(
                             mediaPlayer = mediaPlayer,
                             artist = artist ?: "Unknown Artist",
@@ -91,7 +86,7 @@ class MainActivity : ComponentActivity() {
                             title = title ?: "Unknown Title"
                         )
                     }
-                    composable<SelectSong> {
+                    composable("selectSong") {
                         SelectSongScreen()
                     }
                 }
@@ -282,10 +277,10 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
                                 detectTapGestures {
                                     if (mediaPlayer.isLooping) {
                                         mediaPlayer.isLooping = false
-                                        loopType = R.drawable.loop
+                                        loopType = R.drawable.looptransparent
                                     } else {
                                         mediaPlayer.isLooping = true
-                                        loopType = R.drawable.looptransparent
+                                        loopType = R.drawable.loop
                                     }
                                 }
                             }
