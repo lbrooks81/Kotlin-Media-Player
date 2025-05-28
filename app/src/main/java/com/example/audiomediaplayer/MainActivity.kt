@@ -3,13 +3,10 @@ package com.example.audiomediaplayer
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,18 +29,28 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.audiomediaplayer.ui.theme.AudioMediaPlayerTheme
 import kotlinx.coroutines.delay
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class Main(val mediaPlayer: MediaPlayer,
+                val artist: String,
+                val album: String,
+                val title: String)
+@Serializable
+data class SelectSong(val mediaPlayer: MediaPlayer)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,60 +76,23 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AudioMediaPlayerTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-
-                    Card(
-                        modifier = Modifier
-                            .padding(top = 150.dp)
-                            .height(300.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(top = 15.dp)
-                        ) {
-                            Text(
-                                text = "$artist",
-                                modifier = Modifier
-                                    .padding(start = 25.dp),
-                                fontSize = 20.sp
-                            )
-                            Text(
-                                text = "$title",
-                                modifier = Modifier
-                                    .padding(start = 25.dp),
-                                fontSize = 22.sp
-                            )
-                            Text(
-                                text = "$album",
-                                modifier = Modifier
-                                    .padding(start = 25.dp),
-                                fontSize = 16.sp
-                            )
-                        }
-                        TimeBar(mediaPlayer = mediaPlayer)
-                    }
-
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Slider(
-                            modifier = Modifier
-                                .padding(start = 50.dp)
-                                .graphicsLayer {
-                                    rotationZ = 270f
-                                }
-                                .width(100.dp)
-                                .height(1.dp),
-                            value = 0f,
-                            onValueChange = {
-                                mediaPlayer.setVolume(it,it)
-                            },
-                            valueRange = 0f..1f
+                val navController = rememberNavController()
+                NavHost(navController = navController, startDestination = Main(
+                    mediaPlayer = mediaPlayer,
+                    artist = artist ?: "Unknown Artist",
+                    album = album ?: "Unknown Album",
+                    title = title ?: "Unknown Title"
+                )) {
+                    composable<Main> {
+                        MainScreen(
+                            mediaPlayer = mediaPlayer,
+                            artist = artist ?: "Unknown Artist",
+                            album = album ?: "Unknown Album",
+                            title = title ?: "Unknown Title"
                         )
+                    }
+                    composable<SelectSong> {
+                        SelectSongScreen()
                     }
                 }
             }
@@ -131,7 +101,83 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun TimeBar(mediaPlayer: MediaPlayer) {
+fun MainScreen(mediaPlayer: MediaPlayer, artist: String, album: String, title: String) {
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Card(
+            modifier = Modifier
+                .padding(top = 150.dp)
+                .height(300.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(top = 15.dp)
+            ) {
+                Text(
+                    text = artist,
+                    modifier = Modifier
+                        .padding(start = 25.dp),
+                    fontSize = 20.sp
+                )
+                Text(
+                    text = title,
+                    modifier = Modifier
+                        .padding(start = 25.dp),
+                    fontSize = 22.sp
+                )
+                Text(
+                    text = album,
+                    modifier = Modifier
+                        .padding(start = 25.dp),
+                    fontSize = 16.sp
+                )
+            }
+            PlayCard(mediaPlayer = mediaPlayer)
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Slider(
+                modifier = Modifier
+                    .padding(start = 50.dp)
+                    .graphicsLayer {
+                        rotationZ = 270f
+                    }
+                    .width(100.dp)
+                    .height(1.dp),
+                value = 0f,
+                onValueChange = {
+                    mediaPlayer.setVolume(it,it)
+                },
+                valueRange = 0f..1f
+            )
+        }
+    }
+}
+
+@Composable
+fun SelectSongScreen() {
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = "Select a song",
+                fontSize = 24.sp,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun PlayCard(mediaPlayer: MediaPlayer) {
     var currentTime by remember { mutableStateOf(mediaPlayer.currentPosition)}
 
     LaunchedEffect(Unit) {
@@ -233,12 +279,14 @@ fun TimeBar(mediaPlayer: MediaPlayer) {
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .pointerInput(Unit) {
-                                if (mediaPlayer.isLooping) {
-                                    mediaPlayer.isLooping = false
-                                    loopType = R.drawable.loop
-                                } else {
-                                    mediaPlayer.isLooping = true
-                                    loopType = R.drawable.looptransparent
+                                detectTapGestures {
+                                    if (mediaPlayer.isLooping) {
+                                        mediaPlayer.isLooping = false
+                                        loopType = R.drawable.loop
+                                    } else {
+                                        mediaPlayer.isLooping = true
+                                        loopType = R.drawable.looptransparent
+                                    }
                                 }
                             }
                     )
