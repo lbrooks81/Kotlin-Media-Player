@@ -1,22 +1,27 @@
 package com.example.audiomediaplayer
 
+import android.graphics.BitmapFactory.decodeByteArray
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.ui.graphics.ImageBitmap.Companion
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderColors
@@ -34,24 +39,21 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navOptions
 import com.example.audiomediaplayer.ui.theme.AudioMediaPlayerTheme
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class Main(val mediaPlayer: MediaPlayer,
-                val artist: String,
-                val album: String,
-                val title: String)
-@Serializable
-data class SelectSong(val mediaPlayer: MediaPlayer)
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,24 +70,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppStart()
 {
-    val context = LocalContext.current
     // Initializes the mediaPlayer by opening the audio file and setting the data source
-    val mediaPlayer = MediaPlayer().apply {
-        context.assets.openFd("infernal_sonata.mp3").use { descriptor ->
-            setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-            prepare()
-        }
-    }
+    val mediaPlayer = MediaPlayer()
 
-    val metaDataRetriever = MediaMetadataRetriever().apply{
-        context.assets.openFd("infernal_sonata.mp3").use { descriptor ->
-            setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
-        }
-    }
-
-    val artist = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-    val album = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-    val title = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+    var artist: String? = null
+    var album: String? = null
+    var title: String? = null
 
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "main") {
@@ -94,7 +84,8 @@ fun AppStart()
                 mediaPlayer = mediaPlayer,
                 artist = artist ?: "Unknown Artist",
                 album = album ?: "Unknown Album",
-                title = title ?: "Unknown Title"
+                title = title ?: "Unknown Title",
+                navController = navController
             )
         }
         composable("select_song") {
@@ -104,8 +95,17 @@ fun AppStart()
 }
 
 @Composable
-fun MainScreen(mediaPlayer: MediaPlayer, artist: String, album: String, title: String) {
+fun MainScreen(mediaPlayer: MediaPlayer, artist: String, album: String, title: String, navController: NavController) {
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+        Button(
+            onClick = {
+                navController.navigate("select_song");
+            },
+            modifier = Modifier
+                .padding(innerPadding)
+        ) {
+            Text("Select a Song")
+        }
         Card(
             modifier = Modifier
                 .padding(top = 150.dp)
@@ -135,33 +135,17 @@ fun MainScreen(mediaPlayer: MediaPlayer, artist: String, album: String, title: S
             }
             PlayCard(mediaPlayer = mediaPlayer)
         }
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Slider(
-                modifier = Modifier
-                    .padding(start = 50.dp)
-                    .graphicsLayer {
-                        rotationZ = 270f
-                    }
-                    .width(100.dp)
-                    .height(1.dp),
-                value = 0f,
-                onValueChange = {
-                    mediaPlayer.setVolume(it,it)
-                },
-                valueRange = 0f..1f
-            )
-        }
     }
 }
 
 @Composable
 fun SelectSongScreen() {
+
+    val files = LocalContext.current.assets.list("") ?: emptyArray()
+
+
+    // TODO make a template for each song
+
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Row(
             modifier = Modifier
@@ -170,10 +154,77 @@ fun SelectSongScreen() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Text(
-                text = "Select a song",
-                fontSize = 24.sp,
-                modifier = Modifier.padding(16.dp)
+            for (file in files) {
+                if (file.endsWith(".mp3") || file.endsWith(".wav")) {
+                    SongCard(file = file, mediaPlayer = MediaPlayer()) {}
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SongCard(file: String, mediaPlayer: MediaPlayer, onClick: () -> Unit) {
+    val context = LocalContext.current
+
+    mediaPlayer.apply {
+        context.assets.openFd(file).use { descriptor ->
+            setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+            prepare()
+        }
+    }
+
+    val metaDataRetriever = MediaMetadataRetriever().apply{
+        context.assets.openFd(file).use { descriptor ->
+            setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+        }
+    }
+
+    val artist = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+    val album = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+    val title = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+    val image = metaDataRetriever.embeddedPicture
+
+
+
+    Card(
+        modifier = Modifier
+            .padding(8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+
+        ) {
+            Box(){
+                Text(text = artist?: "Unknown", fontSize = 18.sp)
+                Text(text = album?: title!!, fontSize = 18.sp)
+                Text(text = title!!, fontSize = 20.sp)
+            }
+            if (image != null) {
+                Image(
+                    bitmap = image.decodeByteArray(image, 0, image.size).asImageBitmap(),
+                )
+            }
+
+            Image(
+                painter = painterResource(iconType),
+                contentDescription = "icon",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .pointerInput(Unit) {
+                        detectTapGestures {
+                            if (mediaPlayer.isPlaying) {
+                                mediaPlayer.pause()
+                                iconType = R.drawable.play
+                            }
+                            else {
+                                mediaPlayer.start()
+                                iconType = R.drawable.pause
+                            }
+                        }
+                    }
             )
         }
     }
@@ -184,7 +235,7 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
     var currentTime by remember { mutableStateOf(mediaPlayer.currentPosition)}
 
     LaunchedEffect(Unit) {
-        while (true) {
+        while (mediaPlayer.isPlaying) {
             currentTime = if (mediaPlayer.currentPosition >= mediaPlayer.duration) mediaPlayer.duration
             else mediaPlayer.currentPosition
             delay(100)
@@ -276,11 +327,37 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
                         ,
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
+                    var volume by remember { mutableStateOf(0f) }
+                    Slider(
+                        modifier = Modifier
+                            .padding(start = 50.dp)
+                            .width(100.dp)
+                            .height(1.dp),
+                        value = volume,
+                        onValueChange = {
+                            mediaPlayer.setVolume(it,it)
+                            volume = it
+                        },
+                        colors = SliderColors(
+                            thumbColor = Color(red=0, green=167, blue=100),
+                            activeTrackColor = Color.Green,
+                            inactiveTrackColor = Color.Gray,
+                            activeTickColor = Color.Black,
+                            inactiveTickColor = Color.Black,
+                            disabledActiveTrackColor = Color.Gray,
+                            disabledInactiveTrackColor = Color.Gray,
+                            disabledThumbColor = Color(red=0, green= 255, blue=100),
+                            disabledActiveTickColor = Color.Gray,
+                            disabledInactiveTickColor = Color.Gray,
+                        ),
+                        valueRange = 0f..1f
+                    )
                     Image(
                         painter = painterResource(loopType),
                         contentDescription = "icon",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
+                            .padding(end = 20.dp)
                             .pointerInput(Unit) {
                                 detectTapGestures {
                                     if (mediaPlayer.isLooping) {
@@ -293,14 +370,6 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
                                 }
                             }
                     )
-                    Button(
-                        onClick = ({
-                            mediaPlayer.stop()
-                            mediaPlayer.prepare()
-                        })
-                    ) {
-                        Text("Reset")
-                    }
                 }
             }
         }
