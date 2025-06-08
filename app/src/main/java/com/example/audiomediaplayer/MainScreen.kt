@@ -1,15 +1,21 @@
 package com.example.audiomediaplayer
 
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Scaffold
@@ -25,9 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,61 +44,210 @@ import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 
 @Composable
-fun MainScreen(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>, artist: String, album: String, title: String, navController: NavController) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Button(
-            onClick = {
-                navController.navigate("select_song/${currentSong.value}") {
-                    // Clear the back stack to prevent going back to this screen
-                    popUpTo("main") { inclusive = true }
-                }
-            },
-            modifier = Modifier
-                .padding(innerPadding)
-        ) {
-            Text("Select a Song")
+fun MainScreen(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>, navController: NavController) {
+    val context = LocalContext.current
+    val files = context.assets.list("") ?: emptyArray()
+
+    val artist = remember { mutableStateOf<String?>("Unknown Artist") }
+    val album = remember { mutableStateOf<String?>("Unknown Album") }
+    val title = remember { mutableStateOf<String?>("Unknown Title") }
+
+    if (currentSong.value != null && currentSong.value != "placeholder") {
+        val metaDataRetriever = MediaMetadataRetriever().apply{
+            context.assets.openFd(currentSong.value!!).use { descriptor ->
+                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+            }
         }
+
+        artist.value = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+        album.value = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+        title.value = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+    }
+
+    val currentIndex = files.indexOf(currentSong.value)
+    val nextSong = remember { mutableStateOf<String?>(null) }
+
+    if (currentIndex == -1 || currentIndex > files.size - 1) {
+        nextSong.value = files[0] // Loop to the first song if current is invalid
+    } else {
+        nextSong.value = files[currentIndex + 1]
+    }
+
+    val nextArtist = remember { mutableStateOf<String?>("Unknown Artist") }
+    val nextAlbum = remember { mutableStateOf<String?>("Unknown Album") }
+    val nextTitle = remember { mutableStateOf<String?>("Unknown Title") }
+
+    if (nextSong.value != null) {
+        val metaDataRetriever = MediaMetadataRetriever().apply{
+            context.assets.openFd(nextSong.value!!).use { descriptor ->
+                setDataSource(descriptor.fileDescriptor, descriptor.startOffset, descriptor.length)
+            }
+        }
+
+        nextArtist.value = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+        nextAlbum.value = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+        nextTitle.value = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+    }
+
+
+    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
         Card(
             modifier = Modifier
-                .padding(top = 150.dp)
-                .height(300.dp)
+                .padding(vertical = 25.dp, horizontal = 16.dp)
+                .fillMaxWidth()
+                .height(110.dp),
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(
+                defaultElevation = 6.dp
+            )
+        ){
+            Column(
+                modifier = Modifier.padding(top = 15.dp)
+            ){
+                Text(
+                    text = "Next Song",
+                    modifier = Modifier
+                        .padding(horizontal = 25.dp),
+                    fontSize = 20.sp
+                )
+                Text(
+                    text = nextArtist.value ?: "Unknown Artist",
+                    modifier = Modifier
+                        .padding(start = 25.dp),
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = nextTitle.value ?: "Unknown Title",
+                    modifier = Modifier
+                        .padding(start = 25.dp),
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = nextAlbum.value ?: "Unknown Album",
+                    modifier = Modifier
+                        .padding(start = 25.dp),
+                    fontSize = 12.sp
+                )
+            }
+        }
+
+
+        Card(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(top = innerPadding.calculateTopPadding() + 150.dp)
+                .height(350.dp)
+                .fillMaxWidth(),
+            elevation = androidx.compose.material3.CardDefaults.cardElevation(
+                defaultElevation = 6.dp
+            )
         ) {
             Column(
                 modifier = Modifier.padding(top = 15.dp)
             ) {
                 Text(
-                    text = artist,
+                    text = "Now Playing",
+                    modifier = Modifier
+                        .padding(horizontal = 25.dp),
+                    fontSize = 32.sp
+                )
+                Text(
+                    text = artist.value ?: "Unknown Artist",
                     modifier = Modifier
                         .padding(start = 25.dp),
                     fontSize = 20.sp
                 )
                 Text(
-                    text = title,
+                    text = title.value ?: "Unknown Title",
                     modifier = Modifier
                         .padding(start = 25.dp),
                     fontSize = 22.sp
                 )
                 Text(
-                    text = album,
+                    text = album.value ?: "Unknown Album",
                     modifier = Modifier
                         .padding(start = 25.dp),
                     fontSize = 16.sp
                 )
             }
-            PlayCard(mediaPlayer = mediaPlayer)
+            PlayCard(mediaPlayer = mediaPlayer, currentSong = currentSong)
+
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxSize(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Button(
+                onClick = {
+                    if (mediaPlayer.isPlaying) mediaPlayer.stop()
+                    navController.navigate("select_song/${currentSong.value}") {
+                        popUpTo("main") { inclusive = true }
+                    }
+                },
+                modifier = Modifier
+                    .padding(top = 550.dp)
+                    .width(200.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Text(
+                    "Select a Song",
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
         }
     }
 }
 
+
+
 @Composable
-fun PlayCard(mediaPlayer: MediaPlayer) {
+fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
+    // TODO now that the media player is shared between the screens, the position does not update correctly
     var currentTime by remember { mutableStateOf(mediaPlayer.currentPosition) }
+    val files = LocalContext.current.assets.list("") ?: emptyArray()
+    val songEnded = remember { mutableStateOf(false) }
+
+    if (songEnded.value) {
+        if (!mediaPlayer.isLooping) {
+            mediaPlayer.pause()
+        }
+
+        mediaPlayer.stop()
+        mediaPlayer.reset()
+
+        var currentIndex = files.indexOf(currentSong.value)
+
+        // Sets the current index to one before the first to loop to the beginning
+        if (currentIndex == -1 || currentIndex > files.size - 1) {
+            currentIndex = -1
+        }
+
+        val nextSong = files[currentIndex + 1]
+        currentSong.value = nextSong
+
+        LocalContext.current.assets.openFd(nextSong).use { descriptor ->
+            mediaPlayer.setDataSource(
+                descriptor.fileDescriptor,
+                descriptor.startOffset,
+                descriptor.length
+            )
+            mediaPlayer.prepare()
+            mediaPlayer.start()
+        }
+
+        songEnded.value = false
+    }
 
     LaunchedEffect(Unit) {
-        while (mediaPlayer.isPlaying) {
+        while (mediaPlayer.duration > 0) {
             currentTime = if (mediaPlayer.currentPosition >= mediaPlayer.duration) mediaPlayer.duration
             else mediaPlayer.currentPosition
             delay(100)
+            if (mediaPlayer.duration == currentTime) {
+                songEnded.value = true
+            }
         }
     }
 
@@ -140,8 +297,9 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
             ){
                 Text(
                     modifier = Modifier.padding(top = 10.dp),
-                    text="${(currentTime / 1000) / 60}:${addZero((currentTime / 1000) % 60)}",
-                    fontSize = 24.sp,
+                    text = "${(currentTime / 1000) / 60}:${addZero((currentTime / 1000) % 60)}",
+                    fontSize = 20.sp,
+                    color = Color(0xFF1E88E5)
                 )
 
                 Image(
@@ -149,6 +307,8 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
                     contentDescription = "icon",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
+                        .width(48.dp)
+                        .height(48.dp)
                         .pointerInput(Unit) {
                             detectTapGestures {
                                 if (mediaPlayer.isPlaying) {
@@ -162,10 +322,12 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
                             }
                         }
                 )
+
                 Text(
                     modifier = Modifier.padding(top = 10.dp),
                     text="${(mediaPlayer.duration / 1000) / 60}:${addZero((mediaPlayer.duration / 1000) % 60 )}",
-                    fontSize = 24.sp
+                    fontSize = 20.sp,
+                    color = Color(0xFF1E88E5)
                 )
             }
 
@@ -178,10 +340,11 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
                 ,
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                var volume by remember { mutableStateOf(0f) }
+                var volume by remember { mutableStateOf(1f) }
+
                 Slider(
                     modifier = Modifier
-                        .padding(start = 50.dp)
+                        .padding(top = 10.dp, end = 25.dp)
                         .width(100.dp)
                         .height(1.dp),
                     value = volume,
@@ -203,20 +366,22 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
                     ),
                     valueRange = 0f..1f
                 )
+
                 Image(
                     painter = painterResource(loopType),
                     contentDescription = "icon",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
-                        .padding(end = 20.dp)
+                        .padding(bottom = 10.dp, end = 20.dp)
                         .pointerInput(Unit) {
                             detectTapGestures {
                                 if (mediaPlayer.isLooping) {
                                     mediaPlayer.isLooping = false
-                                    loopType = R.drawable.loop
+                                    loopType = R.drawable.looptransparent
                                 } else {
                                     mediaPlayer.isLooping = true
-                                    loopType = R.drawable.looptransparent
+                                    loopType = R.drawable.loop
+
                                 }
                             }
                         }
@@ -225,6 +390,7 @@ fun PlayCard(mediaPlayer: MediaPlayer) {
         }
     }
 }
+
 fun addZero(number: Int): String {
     return if (number < 10) {
         "0$number"
@@ -232,3 +398,4 @@ fun addZero(number: Int): String {
         number.toString()
     }
 }
+

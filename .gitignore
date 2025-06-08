@@ -1,4 +1,6 @@
 *.iml
+*.wav
+*.mp3
 .gradle
 /local.properties
 /.idea/caches

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Button
@@ -41,39 +42,36 @@ import androidx.navigation.NavController
 
 @Composable
 fun SelectSongScreen(navController: NavController, currentSong: MutableState<String?>, mediaPlayer: MediaPlayer) {
-    Button(
-        onClick = {
-            navController.popBackStack()
-            /*navController.navigate("main/${currentSong.value}")*/
-        },
-        modifier = Modifier
-            .padding(16.dp)
-            .fillMaxWidth()
 
-    ) {
-        Text("Home Page")
-    }
 
     val files = LocalContext.current.assets.list("") ?: emptyArray()
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Button(
-            onClick = {
-                navController.navigate("main") {
-                    // Clear the back stack to prevent going back to this screen
-                    popUpTo("select_song") { inclusive = true }
-                }
-            }
-        ) {
-            Text("Return to Main Screen")
-        }
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Text(
+                text = "Music Library",
+                fontSize = 32.sp,
+                modifier = Modifier.padding(16.dp)
+            )
+            /*LazyColumn {
+                items(files.filter { it.endsWith(".mp3") || it.endsWith(".wav") }.count()) { file ->
+                    SongCard(
+                        file = file.toString(),
+                        mediaPlayer = mediaPlayer,
+                        updateSong = {
+                            currentSong.value = file.toString()
+                        },
+                        selectedSongFile = currentSong.value,
+                        navController = navController
+                    )
+                }
+            }*/
             for (file in files) {
                 if (file.endsWith(".mp3") || file.endsWith(".wav")) {
                     SongCard(
@@ -82,8 +80,31 @@ fun SelectSongScreen(navController: NavController, currentSong: MutableState<Str
                         updateSong = {
                             currentSong.value = file
                         },
-                        selectedSongFile = currentSong.value
+                        selectedSongFile = currentSong.value,
+                        navController = navController
                     )
+                }
+            }
+            if (currentSong.value != null && currentSong.value != "placeholder") {
+                Button(
+                    onClick = { navController.popBackStack() },
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+
+                        Text(
+                            text = "Back to Player",
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
                 }
             }
         }
@@ -91,7 +112,7 @@ fun SelectSongScreen(navController: NavController, currentSong: MutableState<Str
 }
 
 @Composable
-fun SongCard(file: String, mediaPlayer: MediaPlayer, updateSong: () -> Unit, selectedSongFile: String ?= null) {
+fun SongCard(file: String, mediaPlayer: MediaPlayer, updateSong: () -> Unit, selectedSongFile: String ?= null, navController: NavController) {
     val context = LocalContext.current
 
 
@@ -104,97 +125,54 @@ fun SongCard(file: String, mediaPlayer: MediaPlayer, updateSong: () -> Unit, sel
     val artist = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
     val album = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
     val title = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-    val image = metaDataRetriever.embeddedPicture
-
-
-    val isSelected = remember { mutableStateOf(file == selectedSongFile) }
-    // Placing the isSelected state and selectedSongFile in the remember () means that they will act as dependencies
-    // Any time either of them changes, the button color will be recomposed
-    val buttonColor = remember(isSelected.value, selectedSongFile) {
-        if (!isSelected.value || file != selectedSongFile) Color.Gray else Color(30, 160, 20)
-    }
-    val buttonBorderColor = remember(isSelected.value, selectedSongFile) {
-        if (!isSelected.value || file != selectedSongFile) Color.DarkGray else Color(169, 173, 174)
-    }
-
-    val shape = RoundedCornerShape(16.dp)
 
     Card(
         modifier = Modifier
-            .padding(8.dp)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .fillMaxWidth()
+            .clickable(
+                onClick = {
+                    mediaPlayer.reset()
+                    context.assets.openFd(file).use { descriptor ->
+                        mediaPlayer.setDataSource(
+                            descriptor.fileDescriptor,
+                            descriptor.startOffset,
+                            descriptor.length
+                        )
+                        mediaPlayer.prepare()
+                    }
+                    updateSong()
+                    navController.navigate("main") {
+                        popUpTo("select_song") { inclusive = true }
+                    }
+                },
+                interactionSource = remember { MutableInteractionSource() },
+                indication = rememberRipple()
+            )
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-
-            ) {
-
-
-            Text(text = artist?: "Unknown", fontSize = 18.sp)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = album ?: title!!, fontSize = 18.sp)
-
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Select",
-                    color = Color.White,
-                    fontSize = 26.sp,
-                    modifier = Modifier
-                        .background(buttonColor, shape)
-                        .border(4.dp, buttonBorderColor, shape)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                        .clickable(
-                            onClick = {
-                                mediaPlayer.reset()
-                                mediaPlayer.apply {
-                                    context.assets.openFd(file).use { descriptor ->
-                                        setDataSource(
-                                            descriptor.fileDescriptor,
-                                            descriptor.startOffset,
-                                            descriptor.length
-                                        )
-                                        prepare()
-                                    }
-                                }
-                                Log.d("SongSelection", "Before: ${isSelected.value} $buttonColor, $buttonBorderColor")
-
-                                updateSong()
-                                isSelected.value = !isSelected.value
-                                Log.d("SongSelection", "After: ${isSelected.value} $buttonColor, $buttonBorderColor")
-
-                            },
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = rememberRipple()
-                        )
+                    text = title ?: "Unknown Title",
+                    fontSize = 18.sp,
+                    color = if (file == selectedSongFile) Color(0xFF1E88E5) else Color.Black
                 )
-
-
-                /*Image(
-                    painter = painterResource(iconType),
-                    contentDescription = "icon",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .scale(0.5f)
-                        .pointerInput(Unit) {
-                            detectTapGestures {
-
-                            }
-                        }
-                )*/
-            }
-            Text(text = title!!, fontSize = 20.sp)
-
-
-            if (image != null) {
-                /*Image(
-                    bitmap = image.decodeByteArray(image, 0, image.size).asImageBitmap(),
-                )*/
+                Text(
+                    text = album ?: "Unknown Album",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+                Text(
+                    text = artist ?: "Unknown Artist",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
             }
         }
     }
