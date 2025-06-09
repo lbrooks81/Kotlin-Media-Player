@@ -47,6 +47,7 @@ import kotlinx.coroutines.delay
 fun MainScreen(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>, navController: NavController) {
     val context = LocalContext.current
     val files = context.assets.list("") ?: emptyArray()
+    val audioFiles = files.filter { it.endsWith(".mp3") || it.endsWith(".wav") || it.endsWith(".ogg")}
 
     val artist = remember { mutableStateOf<String?>("Unknown Artist") }
     val album = remember { mutableStateOf<String?>("Unknown Album") }
@@ -64,13 +65,13 @@ fun MainScreen(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>, nav
         title.value = metaDataRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
     }
 
-    val currentIndex = files.indexOf(currentSong.value)
+    val currentIndex = audioFiles.indexOf(currentSong.value)
     val nextSong = remember { mutableStateOf<String?>(null) }
 
-    if (currentIndex == -1 || currentIndex > files.size - 1) {
-        nextSong.value = files[0] // Loop to the first song if current is invalid
+    if (currentIndex == -1 || currentIndex >= audioFiles.size - 1) {
+        nextSong.value = audioFiles[0] // Loop to the first song if current is invalid
     } else {
-        nextSong.value = files[currentIndex + 1]
+        nextSong.value = audioFiles[currentIndex + 1]
     }
 
     val nextArtist = remember { mutableStateOf<String?>("Unknown Artist") }
@@ -206,28 +207,27 @@ fun MainScreen(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>, nav
 fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
     var currentTime by remember { mutableStateOf(mediaPlayer.currentPosition) }
     val files = LocalContext.current.assets.list("") ?: emptyArray()
+    val audioFiles = files.filter { it.endsWith(".mp3") || it.endsWith(".wav") || it.endsWith(".ogg")}
+
     val songEnded = remember { mutableStateOf(false) }
 
-    // TODO fix auto-playing
-    //  Case 1: Brain Damage went into Can-Utility fine, but Cogs and Cogs crashed. The media player, oddly enough, kept going for a bit
-    //  Case 2: Started from Can-Utility, it also crashed when going to Cogs and Cogs
-    //  Case 3: Tried starting from Cogs and Cogs, crashed the program
     if (songEnded.value) {
         if (!mediaPlayer.isLooping) {
             mediaPlayer.pause()
         }
+        songEnded.value = false
 
         mediaPlayer.stop()
         mediaPlayer.reset()
 
-        var currentIndex = files.indexOf(currentSong.value)
+        var currentIndex = audioFiles.indexOf(currentSong.value)
 
         // Sets the current index to one before the first to loop to the beginning
-        if (currentIndex == -1 || currentIndex > files.size - 1) {
+        if (currentIndex == -1 || currentIndex >= audioFiles.size - 1) {
             currentIndex = -1
         }
 
-        val nextSong = files[currentIndex + 1]
+        val nextSong = audioFiles[currentIndex + 1]
         currentSong.value = nextSong
 
         LocalContext.current.assets.openFd(nextSong).use { descriptor ->
@@ -242,7 +242,6 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
             mediaPlayer.start()
         }
 
-        songEnded.value = false
     }
 
     LaunchedEffect(Unit) {
@@ -251,6 +250,7 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
             currentTime = if (mediaPlayer.currentPosition >= mediaPlayer.duration) mediaPlayer.duration
             else mediaPlayer.currentPosition
             delay(100)
+            if (mediaPlayer.isLooping) continue
             if (mediaPlayer.duration == currentTime) {
                 songEnded.value = true
             }
@@ -320,8 +320,7 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
                                 if (mediaPlayer.isPlaying) {
                                     mediaPlayer.pause()
                                     iconType = R.drawable.play
-                                }
-                                else {
+                                } else {
                                     mediaPlayer.start()
                                     iconType = R.drawable.pause
                                 }
