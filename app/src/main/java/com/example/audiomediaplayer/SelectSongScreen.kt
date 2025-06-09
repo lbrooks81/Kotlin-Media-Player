@@ -10,6 +10,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,45 +42,49 @@ import androidx.navigation.NavController
 
 @Composable
 fun SelectSongScreen(navController: NavController, currentSong: MutableState<String?>, mediaPlayer: MediaPlayer) {
-
-
     val files = LocalContext.current.assets.list("") ?: emptyArray()
 
     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Music Library",
-                fontSize = 32.sp,
-                modifier = Modifier.padding(16.dp)
-            )
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Music Library",
+                    fontSize = 32.sp,
+                    modifier = Modifier.padding(16.dp)
+                )
 
-            // Allows the items to be scrolled through, preventing the screen from getting flooded
-            LazyColumn {
-                items(files.filter { it.endsWith(".mp3") || it.endsWith(".wav") }) { file ->
-                    SongCard(
-                        file = file,
-                        mediaPlayer = mediaPlayer,
-                        updateSong = {
-                            currentSong.value = file
-                        },
-                        selectedSongFile = currentSong.value,
-                        navController = navController
-                    )
+                // Allows the items to be scrolled through, preventing the screen from getting flooded
+                LazyColumn {
+                    items(files.filter { it.endsWith(".mp3") || it.endsWith(".wav") }) { file ->
+                        SongCard(
+                            file = file,
+                            mediaPlayer = mediaPlayer,
+                            updateSong = {
+                                currentSong.value = file
+                            },
+                            selectedSongFile = currentSong.value,
+                        )
+                    }
                 }
             }
 
             if (currentSong.value != null && currentSong.value != "placeholder") {
                 Button(
-                    onClick = { navController.popBackStack() },
+                    onClick = {
+                        navController.navigate("main") {
+                            popUpTo("select_song") { inclusive = true }
+                        }
+                    },
                     modifier = Modifier
                         .padding(16.dp)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter),
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Row(
@@ -89,7 +94,7 @@ fun SelectSongScreen(navController: NavController, currentSong: MutableState<Str
                     ) {
 
                         Text(
-                            text = "Back to Player",
+                            text = "To Player",
                             fontSize = 16.sp,
                             modifier = Modifier.padding(start = 8.dp)
                         )
@@ -101,9 +106,8 @@ fun SelectSongScreen(navController: NavController, currentSong: MutableState<Str
 }
 
 @Composable
-fun SongCard(file: String, mediaPlayer: MediaPlayer, updateSong: () -> Unit, selectedSongFile: String ?= null, navController: NavController) {
+fun SongCard(file: String, mediaPlayer: MediaPlayer, updateSong: () -> Unit, selectedSongFile: String ?= null) {
     val context = LocalContext.current
-
 
     val metaDataRetriever = MediaMetadataRetriever().apply{
         context.assets.openFd(file).use { descriptor ->
@@ -131,9 +135,6 @@ fun SongCard(file: String, mediaPlayer: MediaPlayer, updateSong: () -> Unit, sel
                         mediaPlayer.prepare()
                     }
                     updateSong()
-                    navController.navigate("main") {
-                        popUpTo("select_song") { inclusive = true }
-                    }
                 },
                 interactionSource = remember { MutableInteractionSource() },
                 indication = rememberRipple()

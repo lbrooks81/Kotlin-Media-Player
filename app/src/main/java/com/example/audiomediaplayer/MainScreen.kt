@@ -209,6 +209,9 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
     val songEnded = remember { mutableStateOf(false) }
 
     // TODO fix auto-playing
+    //  Case 1: Brain Damage went into Can-Utility fine, but Cogs and Cogs crashed. The media player, oddly enough, kept going for a bit
+    //  Case 2: Started from Can-Utility, it also crashed when going to Cogs and Cogs
+    //  Case 3: Tried starting from Cogs and Cogs, crashed the program
     if (songEnded.value) {
         if (!mediaPlayer.isLooping) {
             mediaPlayer.pause()
@@ -234,6 +237,8 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
                 descriptor.length
             )
             mediaPlayer.prepare()
+            mediaPlayer.seekTo(0)
+            currentTime = 0
             mediaPlayer.start()
         }
 
@@ -241,6 +246,7 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
     }
 
     LaunchedEffect(Unit) {
+        // TODO the time gets locked if it reaches the end
         while (mediaPlayer.duration > 0) {
             currentTime = if (mediaPlayer.currentPosition >= mediaPlayer.duration) mediaPlayer.duration
             else mediaPlayer.currentPosition
@@ -373,6 +379,7 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .padding(bottom = 10.dp, end = 20.dp)
+                        .scale(1.75f)
                         .pointerInput(Unit) {
                             detectTapGestures {
                                 if (mediaPlayer.isLooping) {
@@ -381,7 +388,6 @@ fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
                                 } else {
                                     mediaPlayer.isLooping = true
                                     loopType = R.drawable.loop
-
                                 }
                             }
                         }
