@@ -204,11 +204,11 @@ fun MainScreen(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>, nav
 
 @Composable
 fun PlayCard(mediaPlayer: MediaPlayer, currentSong: MutableState<String?>) {
-    // TODO now that the media player is shared between the screens, the position does not update correctly
     var currentTime by remember { mutableStateOf(mediaPlayer.currentPosition) }
     val files = LocalContext.current.assets.list("") ?: emptyArray()
     val songEnded = remember { mutableStateOf(false) }
 
+    // TODO fix auto-playing
     if (songEnded.value) {
         if (!mediaPlayer.isLooping) {
             mediaPlayer.pause()

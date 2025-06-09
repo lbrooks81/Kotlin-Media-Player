@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Button
@@ -24,8 +25,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,21 +58,10 @@ fun SelectSongScreen(navController: NavController, currentSong: MutableState<Str
                 fontSize = 32.sp,
                 modifier = Modifier.padding(16.dp)
             )
-            /*LazyColumn {
-                items(files.filter { it.endsWith(".mp3") || it.endsWith(".wav") }.count()) { file ->
-                    SongCard(
-                        file = file.toString(),
-                        mediaPlayer = mediaPlayer,
-                        updateSong = {
-                            currentSong.value = file.toString()
-                        },
-                        selectedSongFile = currentSong.value,
-                        navController = navController
-                    )
-                }
-            }*/
-            for (file in files) {
-                if (file.endsWith(".mp3") || file.endsWith(".wav")) {
+
+            // Allows the items to be scrolled through, preventing the screen from getting flooded
+            LazyColumn {
+                items(files.filter { it.endsWith(".mp3") || it.endsWith(".wav") }) { file ->
                     SongCard(
                         file = file,
                         mediaPlayer = mediaPlayer,
@@ -85,6 +73,7 @@ fun SelectSongScreen(navController: NavController, currentSong: MutableState<Str
                     )
                 }
             }
+
             if (currentSong.value != null && currentSong.value != "placeholder") {
                 Button(
                     onClick = { navController.popBackStack() },
