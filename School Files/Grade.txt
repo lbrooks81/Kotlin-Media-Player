@@ -1,0 +1,16 @@
+100/100 :)
+
++3 extra credit for light/dark theme. App adapts nicely with the phone theme changes.
+
+Categories
+
+Effort - 22/25
+- (-3) The ability to go to the next song or previous song from the "now playing" screen would be very nice.
+
+Constraints Met - 25/25
+
+UI/UX - 30/30
+
+Bug-Free - 10/10
+
+Source Code Cleanliness - 10/10
